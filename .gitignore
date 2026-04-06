@@ -1,0 +1,28 @@
+# Dependencies
+node_modules/
+.venv/
+
+# Environment files
+.env
+server/.env
+
+# Uploaded images (generated at runtime)
+server/uploads/*.jpg
+server/uploads/*.jpeg
+server/uploads/*.png
+server/uploads/*.webp
+
+# Build output
+client/dist/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+
+# Logs
+*.log
+npm-debug.log*

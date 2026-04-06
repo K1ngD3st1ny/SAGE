@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>SAGE</title>
+    <script src="https://jsmpeg.com/jsmpeg.min.js"></script>
+    <style>
+        /* DYSTOPIAN BLUE THEME */
+        :root {
+            --neon-blue: #00f3ff;
+            --dim-blue: #005f73;
+            --void-bg: #010409;
+            --panel-bg: rgba(5, 20, 30, 0.85);
+            --alert-color: #ff0055;
+        }
+
+        body {
+            background-color: var(--void-bg);
+            color: var(--neon-blue);
+            font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+            margin: 0;
+            overflow: hidden;
+            /* Cyber grid background */
+            background-image: 
+                linear-gradient(rgba(0, 243, 255, 0.05) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(0, 243, 255, 0.05) 1px, transparent 1px);
+            background-size: 40px 40px;
+        }
+
+        /* Scanline CRT Effect overlay */
+        body::after {
+            content: " ";
+            display: block;
+            position: absolute;
+            top: 0; left: 0; bottom: 0; right: 0;
+            background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.06), rgba(0, 255, 0, 0.02));
+            z-index: 999;
+            background-size: 100% 2px, 3px 100%;
+            pointer-events: none;
+        }
+
+        .hud-container {
+            display: grid;
+            grid-template-columns: 280px 1fr 280px;
+            grid-template-rows: 70px 1fr 40px;
+            height: 100vh;
+            border: 1px solid var(--dim-blue);
+            box-shadow: inset 0 0 50px rgba(0, 243, 255, 0.1);
+        }
+        
+        /* HEADER */
+        .header {
+            grid-column: 1 / -1;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            border-bottom: 2px solid var(--dim-blue);
+            background: rgba(0, 10, 20, 0.95);
+            position: relative;
+        }
+        
+        .project-title {
+            font-size: 36px;
+            font-weight: 900;
+            letter-spacing: 8px;
+            text-transform: uppercase;
+            text-shadow: 0 0 10px var(--neon-blue), 0 0 20px var(--neon-blue);
+        }
+
+        /* SIDEBARS */
+        .sidebar {
+            padding: 25px;
+            border-right: 2px solid var(--dim-blue);
+            background: var(--panel-bg);
+            display: flex;
+            flex-direction: column;
+            gap: 25px;
+            backdrop-filter: blur(5px);
+        }
+        .sidebar-right { 
+            border-left: 2px solid var(--dim-blue); 
+            border-right: none; 
+        }
+        
+        .section-header {
+            border-bottom: 1px solid var(--neon-blue);
+            margin-bottom: 10px;
+            padding-bottom: 5px;
+            font-size: 14px;
+            letter-spacing: 2px;
+            color: #fff;
+            text-shadow: 0 0 5px #fff;
+        }
+
+        .data-block { 
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .data-label { 
+            color: #648da0; 
+            font-size: 11px; 
+            letter-spacing: 1px;
+            text-transform: uppercase; 
+        }
+        
+        .data-value { 
+            font-size: 18px; 
+            font-weight: bold; 
+            text-shadow: 0 0 5px var(--neon-blue);
+        }
+
+        /* MAIN VIDEO FEED */
+        .video-feed {
+            position: relative;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background: #000;
+            overflow: hidden;
+        }
+        canvas {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            filter: contrast(1.1) brightness(1.1) drop-shadow(0 0 10px rgba(0, 243, 255, 0.2));
+        }
+
+        /* HUD OVERLAYS */
+        .hud-border {
+            position: absolute;
+            width: 95%; height: 95%;
+            border: 1px solid rgba(0, 243, 255, 0.3);
+            pointer-events: none;
+        }
+        
+        .hud-border::before {
+            content: "LIVE •";
+            position: absolute;
+            top: 10px; right: 10px;
+            color: var(--alert-color);
+            font-size: 12px;
+            letter-spacing: 2px;
+            font-weight: bold;
+            animation: blink 1s infinite;
+        }
+
+        @keyframes blink {
+            0% { opacity: 1; }
+            50% { opacity: 0.3; }
+            100% { opacity: 1; }
+        }
+
+        /* Latency Coloring Classes */
+        .lat-good { color: var(--neon-blue); text-shadow: 0 0 5px var(--neon-blue); }
+        .lat-med { color: #ffe600; text-shadow: 0 0 5px #ffe600; }
+        .lat-bad { color: var(--alert-color); text-shadow: 0 0 5px var(--alert-color); }
+
+    </style>
+</head>
+<body>
+
+    <div class="hud-container">
+        <div class="header">
+            <div class="project-title">SAGE</div>
+        </div>
+
+        <div class="sidebar">
+            <div class="section-header">UPLINK STATUS</div>
+            
+            <div class="data-block" style="flex-direction: column; align-items: flex-start; gap: 5px;">
+                <span class="data-label">CONNECTION</span>
+                <span class="data-value" id="conn-status" style="color: var(--alert-color);">WAITING</span>
+            </div>
+
+            <div class="data-block" style="flex-direction: column; align-items: flex-start; gap: 5px;">
+                <span class="data-label">PROTOCOL</span>
+                <span class="data-value" style="color: #fff;">MPEG-TS / WS</span>
+            </div>
+
+            <div class="data-block" style="flex-direction: column; align-items: flex-start; gap: 5px;">
+                <span class="data-label">PING LATENCY</span>
+                <span class="data-value" id="latency-val">-- ms</span>
+            </div>
+
+            <div class="data-block" style="flex-direction: column; align-items: flex-start; gap: 5px;">
+                <span class="data-label">SESSION UPTIME</span>
+                <span class="data-value" id="uptime-val">00:00:00</span>
+            </div>
+            
+            <div style="margin-top: auto; border: 1px solid var(--dim-blue); padding: 10px; background: rgba(0,0,0,0.5);">
+                <span class="data-label">CAMERA SOURCE</span><br>
+                <span style="color: #fff; letter-spacing: 1px;">RPi Camera</span><br>
+                <span class="data-label" style="font-size: 9px;">RASPBERRY PI CAM</span>
+            </div>
+        </div>
+
+        <div class="video-feed">
+            <div class="hud-border"></div>
+            <canvas id="video-canvas"></canvas>
+        </div>
+
+        <div class="sidebar sidebar-right">
+            <div class="section-header">ASSETS DETECTED</div>
+            
+            <div class="data-block">
+                <span class="data-label">PERSON</span>
+                <span class="data-value">0</span>
+            </div>
+            <div class="data-block">
+                <span class="data-label">CARS</span>
+                <span class="data-value">0</span>
+            </div>
+            <div class="data-block">
+                <span class="data-label">BICYCLE</span>
+                <span class="data-value">0</span>
+            </div>
+            <div class="data-block">
+                <span class="data-label">OTHER</span>
+                <span class="data-value">0</span>
+            </div>
+            <div class="data-block">
+                <span class="data-label">UNKNOWN</span>
+                <span class="data-value" style="opacity: 0.5">0</span>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- 1. VIDEO PLAYER ---
+        var wsHost = document.location.hostname || 'localhost';
+        var url = 'ws://' + wsHost + ':8082/';
+        var canvas = document.getElementById('video-canvas');
+        var player = new JSMpeg.Player(url, {
+            canvas: canvas,
+            autoplay: true,
+            audio: false,
+            loop: true,
+            onSourceEstablished: function() {
+                document.getElementById('conn-status').innerText = 'CONNECTED';
+                document.getElementById('conn-status').style.color = 'var(--neon-blue)';
+            },
+            onSourceCompleted: function() {
+                document.getElementById('conn-status').innerText = 'DISCONNECTED';
+                document.getElementById('conn-status').style.color = 'var(--alert-color)';
+            }
+        });
+
+        // --- 2. LATENCY MEASUREMENT ---
+        function updateLatency() {
+            var start = performance.now();
+            var img = new Image();
+            img.onload = img.onerror = function() {
+                var latency = Math.round(performance.now() - start);
+                var el = document.getElementById('latency-val');
+                el.innerText = latency + ' ms';
+                el.classList.remove('lat-good', 'lat-med', 'lat-bad');
+                if (latency < 100) el.classList.add('lat-good');
+                else if (latency < 250) el.classList.add('lat-med');
+                else el.classList.add('lat-bad');
+            };
+            img.src = 'http://' + wsHost + ':8080/?action=snapshot&t=' + Date.now();
+        }
+        setInterval(updateLatency, 3000);
+        updateLatency();
+
+        // --- 3. UPTIME CLOCK ---
+        var startTime = Date.now();
+        function updateUptime() {
+            var diff = Math.floor((Date.now() - startTime) / 1000);
+            var h = String(Math.floor(diff / 3600)).padStart(2, '0');
+            var m = String(Math.floor((diff % 3600) / 60)).padStart(2, '0');
+            var s = String(diff % 60).padStart(2, '0');
+            document.getElementById('uptime-val').innerText = h + ':' + m + ':' + s;
+        }
+        setInterval(updateUptime, 1000);
+    </script>
+</body>
+</html>
