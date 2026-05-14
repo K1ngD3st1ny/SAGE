@@ -241,6 +241,32 @@ const Icon = {
       <path d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" />
     </svg>
   ),
+  upload: (p) => (
+    <svg
+      {...p}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.5"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5m-13.5-9L12 3m0 0 4.5 4.5M12 3v13.5" />
+    </svg>
+  ),
+  brain: (p) => (
+    <svg
+      {...p}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.5"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="M9.813 15.904 9 18.75l-.813-2.846a4.5 4.5 0 0 0-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 0 0 3.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 0 0 3.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 0 0-3.09 3.09ZM18.259 8.715 18 9.75l-.259-1.035a3.375 3.375 0 0 0-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 0 0 2.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 0 0 2.456 2.456L21.75 6l-1.035.259a3.375 3.375 0 0 0-2.456 2.456ZM16.894 20.567 16.5 21.75l-.394-1.183a2.25 2.25 0 0 0-1.423-1.423L13.5 18.75l1.183-.394a2.25 2.25 0 0 0 1.423-1.423l.394-1.183.394 1.183a2.25 2.25 0 0 0 1.423 1.423l1.183.394-1.183.394a2.25 2.25 0 0 0-1.423 1.423Z" />
+    </svg>
+  ),
 };
 
 /* ────────────── CONSTANTS ────────────── */
@@ -253,6 +279,7 @@ const ASSETS = [
 
 const NAV_ITEMS = [
   { id: "live", label: "Live Feed", icon: Icon.live },
+  { id: "analyze", label: "AI Analysis", icon: Icon.brain },
   { id: "metrics", label: "Metrics", icon: Icon.chart },
   { id: "logs", label: "Detection Log", icon: Icon.log },
 ];
@@ -441,6 +468,16 @@ export default function Dashboard() {
   const [lightboxImage, setLightboxImage] = useState(null);
   const [streamConnected, setStreamConnected] = useState(false);
   const [isCapturing, setIsCapturing] = useState(false);
+  /* Upload / Analyze state */
+  const [uploadDragOver, setUploadDragOver] = useState(false);
+  const [uploadFile, setUploadFile] = useState(null);
+  const [uploadPreview, setUploadPreview] = useState(null);
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [analyzeResult, setAnalyzeResult] = useState(null);
+  const [analyzeError, setAnalyzeError] = useState(null);
+  const [aiStatus, setAiStatus] = useState(null);
+  const [showAnnotated, setShowAnnotated] = useState(true);
+  const uploadInputRef = useRef(null);
   const socketRef = useRef(null);
   const videoCanvasRef = useRef(null);
   const playerRef = useRef(null);
@@ -615,6 +652,58 @@ export default function Dashboard() {
     document
       .getElementById(`section-${id}`)
       ?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }, []);
+
+  /* ── Upload / Analyze handlers ── */
+  const handleUploadFile = useCallback((file) => {
+    if (!file || !file.type.startsWith("image/")) return;
+    setUploadFile(file);
+    setAnalyzeResult(null);
+    setAnalyzeError(null);
+    const reader = new FileReader();
+    reader.onload = (e) => setUploadPreview(e.target.result);
+    reader.readAsDataURL(file);
+  }, []);
+
+  const handleAnalyze = useCallback(async () => {
+    if (!uploadFile || isAnalyzing) return;
+    setIsAnalyzing(true);
+    setAnalyzeError(null);
+    setAnalyzeResult(null);
+    try {
+      const formData = new FormData();
+      formData.append("image", uploadFile);
+      const resp = await fetch(`${SOCKET_URL}/api/analyze`, {
+        method: "POST",
+        body: formData,
+      });
+      if (!resp.ok) {
+        const err = await resp.json().catch(() => ({}));
+        throw new Error(err.error || `Server error: ${resp.status}`);
+      }
+      const data = await resp.json();
+      setAnalyzeResult(data);
+    } catch (err) {
+      setAnalyzeError(err.message);
+    } finally {
+      setIsAnalyzing(false);
+    }
+  }, [uploadFile, isAnalyzing]);
+
+  const resetUpload = useCallback(() => {
+    setUploadFile(null);
+    setUploadPreview(null);
+    setAnalyzeResult(null);
+    setAnalyzeError(null);
+    if (uploadInputRef.current) uploadInputRef.current.value = "";
+  }, []);
+
+  /* Check AI status on mount */
+  useEffect(() => {
+    fetch(`${SOCKET_URL}/api/ai-status`)
+      .then((r) => r.json())
+      .then(setAiStatus)
+      .catch(() => setAiStatus({ available: false }));
   }, []);
 
   return (
@@ -952,6 +1041,258 @@ export default function Dashboard() {
               </div>
             </section>
 
+            {/* ── AI ANALYSIS / UPLOAD ── */}
+            <section
+              id="section-analyze"
+              className="animate-slide-up"
+              style={{ animationDelay: "0.03s" }}
+            >
+              <div className="flex items-center justify-between mb-3">
+                <h2 className="text-[12px] font-bold text-mac-text/60 uppercase tracking-[0.06em] flex items-center gap-2">
+                  <Icon.brain className="w-4 h-4" /> AI Image Analysis
+                </h2>
+                <div className="flex items-center gap-1.5 text-[11px]">
+                  <span className={`w-[5px] h-[5px] rounded-full ${aiStatus?.available ? 'bg-green-500 animate-pulse-dot' : 'bg-amber-500'}`} />
+                  <span className={`font-medium ${aiStatus?.available ? 'text-green-600' : 'text-amber-600'}`}>
+                    {aiStatus?.available ? 'AI Online' : 'AI Offline'}
+                  </span>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 xl:grid-cols-12 gap-4">
+                {/* Upload zone / Preview */}
+                <div className="xl:col-span-7">
+                  {!uploadPreview ? (
+                    <div
+                      onDragOver={(e) => { e.preventDefault(); setUploadDragOver(true); }}
+                      onDragLeave={() => setUploadDragOver(false)}
+                      onDrop={(e) => {
+                        e.preventDefault();
+                        setUploadDragOver(false);
+                        const f = e.dataTransfer.files[0];
+                        if (f) handleUploadFile(f);
+                      }}
+                      onClick={() => uploadInputRef.current?.click()}
+                      className={`relative rounded-xl border-2 border-dashed cursor-pointer transition-all duration-300 flex flex-col items-center justify-center py-16 px-6 group ${
+                        uploadDragOver
+                          ? 'border-blue-500 bg-blue-50/60 scale-[1.01] shadow-lg'
+                          : 'border-mac-border/60 bg-white hover:border-blue-400/60 hover:bg-blue-50/20'
+                      }`}
+                    >
+                      <input
+                        ref={uploadInputRef}
+                        type="file"
+                        accept="image/jpeg,image/jpg,image/png,image/webp"
+                        className="hidden"
+                        onChange={(e) => {
+                          const f = e.target.files[0];
+                          if (f) handleUploadFile(f);
+                        }}
+                      />
+                      <div className={`w-16 h-16 rounded-2xl flex items-center justify-center mb-4 transition-all duration-300 ${
+                        uploadDragOver
+                          ? 'bg-blue-500/15 scale-110'
+                          : 'bg-mac-divider/50 group-hover:bg-blue-500/10 group-hover:scale-105'
+                      }`}>
+                        <Icon.upload className={`w-7 h-7 transition-colors duration-300 ${
+                          uploadDragOver ? 'text-blue-500' : 'text-mac-tertiary group-hover:text-blue-500'
+                        }`} />
+                      </div>
+                      <p className="text-[14px] font-semibold text-mac-text/80 mb-1">
+                        {uploadDragOver ? 'Drop image here' : 'Upload Thermal Image'}
+                      </p>
+                      <p className="text-[12px] text-mac-tertiary">
+                        Drag & drop or click to browse — JPG, PNG, WebP
+                      </p>
+                      <div className="flex items-center gap-2 mt-4">
+                        <Icon.brain className="w-3.5 h-3.5 text-blue-500/60" />
+                        <span className="text-[11px] text-blue-500/70 font-medium">
+                          Powered by HuggingFace DETR
+                        </span>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="relative rounded-xl overflow-hidden border border-mac-border/50 shadow-card bg-gray-900">
+                      <img
+                        src={
+                          analyzeResult
+                            ? (showAnnotated && analyzeResult.annotatedImageUrl)
+                              ? `${serverBase}${analyzeResult.annotatedImageUrl}`
+                              : `${serverBase}${analyzeResult.imageUrl}`
+                            : uploadPreview
+                        }
+                        alt="Upload preview"
+                        className="w-full aspect-video object-contain cursor-pointer hover:scale-[1.01] transition-transform"
+                        onClick={() => {
+                          if (analyzeResult?.annotatedImageUrl && showAnnotated)
+                            setLightboxImage(analyzeResult.annotatedImageUrl);
+                          else if (analyzeResult?.imageUrl)
+                            setLightboxImage(analyzeResult.imageUrl);
+                        }}
+                      />
+                      {/* Overlay badges */}
+                      <div className="absolute top-3 left-3 flex items-center gap-2">
+                        <span className="bg-black/50 backdrop-blur-sm text-white/90 text-[10px] font-bold px-2 py-1 rounded-md uppercase tracking-wider">
+                          {analyzeResult ? 'Analyzed' : 'Preview'}
+                        </span>
+                        {analyzeResult?.inference_ms && (
+                          <span className="bg-blue-500/80 backdrop-blur-sm text-white text-[10px] font-mono px-2 py-1 rounded-md">
+                            {analyzeResult.inference_ms}ms
+                          </span>
+                        )}
+                      </div>
+                      <div className="absolute top-3 right-3 flex items-center gap-2">
+                        {/* Annotated/Original toggle */}
+                        {analyzeResult?.annotatedImageUrl && (
+                          <button
+                            onClick={() => setShowAnnotated((v) => !v)}
+                            className={`backdrop-blur-sm text-[10px] font-bold px-2.5 py-1 rounded-md transition-all duration-200 ${
+                              showAnnotated
+                                ? 'bg-purple-500/90 text-white hover:bg-purple-600/90'
+                                : 'bg-black/50 text-white/80 hover:bg-black/70'
+                            }`}
+                          >
+                            {showAnnotated ? 'Annotated' : 'Original'}
+                          </button>
+                        )}
+                        <button
+                          onClick={resetUpload}
+                          className="bg-black/50 backdrop-blur-sm text-white/80 hover:text-white rounded-lg px-2.5 py-1 text-[10px] font-medium hover:bg-black/70 transition-colors"
+                        >
+                          Clear
+                        </button>
+                      </div>
+                      {/* Analyze button overlay */}
+                      {!analyzeResult && !isAnalyzing && (
+                        <div className="absolute bottom-4 inset-x-4 flex justify-center">
+                          <button
+                            onClick={handleAnalyze}
+                            className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-blue-500 text-white font-semibold text-[13px] shadow-lg hover:bg-blue-600 hover:shadow-xl active:scale-95 transition-all duration-200"
+                          >
+                            <Icon.brain className="w-4 h-4" />
+                            Run AI Detection
+                          </button>
+                        </div>
+                      )}
+                      {/* Color legend */}
+                      {analyzeResult?.annotatedImageUrl && showAnnotated && (
+                        <div className="absolute bottom-3 left-3 bg-black/60 backdrop-blur-sm rounded-lg px-3 py-2 flex items-center gap-3">
+                          {[
+                            { label: 'Person', color: '#007AFF' },
+                            { label: 'Car', color: '#FF9500' },
+                            { label: 'Bicycle', color: '#34C759' },
+                            { label: 'Other', color: '#AF52DE' },
+                          ].map((item) => (
+                            <div key={item.label} className="flex items-center gap-1.5">
+                              <span className="w-2.5 h-2.5 rounded-sm" style={{ backgroundColor: item.color }} />
+                              <span className="text-[9px] text-white/80 font-medium">{item.label}</span>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                      {/* Loading overlay */}
+                      {isAnalyzing && (
+                        <div className="absolute inset-0 bg-black/40 backdrop-blur-sm flex flex-col items-center justify-center">
+                          <div className="w-10 h-10 border-3 border-white/30 border-t-white rounded-full animate-spin mb-3" />
+                          <p className="text-white font-medium text-[13px]">Analyzing with DETR...</p>
+                          <p className="text-white/60 text-[11px] mt-1">Detecting objects in thermal image</p>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                  {analyzeError && (
+                    <div className="mt-3 p-3 rounded-xl bg-red-50 border border-red-200 text-[12px] text-red-700">
+                      <span className="font-semibold">Error:</span> {analyzeError}
+                    </div>
+                  )}
+                </div>
+
+                {/* Results panel */}
+                <div className="xl:col-span-5 bg-white rounded-xl border border-mac-border/50 shadow-card flex flex-col overflow-hidden">
+                  <div className="px-4 py-3.5 border-b border-mac-divider/80 bg-mac-sidebar/30">
+                    <p className="text-[12px] font-bold text-mac-text/80 uppercase tracking-[0.04em]">
+                      Detection Results
+                    </p>
+                  </div>
+                  <div className="flex-1 p-4 flex flex-col gap-3 justify-center">
+                    {analyzeResult ? (
+                      <>
+                        {ASSETS.map((a) => {
+                          const count = analyzeResult[a.key] || 0;
+                          const maxC = Math.max(
+                            analyzeResult.person || 0,
+                            analyzeResult.car || 0,
+                            analyzeResult.bicycle || 0,
+                            analyzeResult.other || 0,
+                            1
+                          );
+                          return (
+                            <DetectionBar
+                              key={a.key}
+                              asset={a}
+                              count={count}
+                              maxCount={maxC}
+                            />
+                          );
+                        })}
+                        {/* Individual detections */}
+                        {analyzeResult.detections?.length > 0 && (
+                          <div className="mt-2 pt-3 border-t border-mac-divider/60">
+                            <p className="text-[10px] font-bold text-mac-tertiary uppercase tracking-wider mb-2">Individual Detections</p>
+                            <div className="max-h-[180px] overflow-y-auto space-y-1">
+                              {analyzeResult.detections.map((d, i) => (
+                                <div key={i} className="flex items-center gap-2 text-[11px] py-1 px-2 rounded-lg hover:bg-mac-hover/50">
+                                  <span className="w-16 truncate font-medium text-mac-text/80">{d.label}</span>
+                                  <div className="flex-1 h-[4px] bg-mac-divider/70 rounded-full overflow-hidden">
+                                    <div
+                                      className="h-full rounded-full bg-blue-500/70"
+                                      style={{ width: `${(d.score * 100).toFixed(0)}%` }}
+                                    />
+                                  </div>
+                                  <span className="text-[10px] font-mono text-mac-tertiary w-10 text-right">
+                                    {(d.score * 100).toFixed(0)}%
+                                  </span>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </>
+                    ) : (
+                      <div className="text-center py-8">
+                        <div className="w-12 h-12 rounded-xl bg-mac-divider/40 flex items-center justify-center mx-auto mb-3">
+                          <Icon.brain className="w-6 h-6 text-mac-tertiary" />
+                        </div>
+                        <p className="text-[13px] text-mac-secondary font-medium">
+                          {uploadPreview ? 'Click "Run AI Detection"' : 'Upload an image to analyze'}
+                        </p>
+                        <p className="text-[11px] text-mac-tertiary mt-1">
+                          Detects people, cars, bicycles & more
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                  {analyzeResult && (
+                    <div className="px-4 py-3 border-t border-mac-divider/80 bg-mac-sidebar/30 flex justify-between items-center">
+                      <span className="text-[12px] text-mac-secondary font-medium">Total Objects</span>
+                      <div className="flex items-center gap-2">
+                        <DonutRing
+                          value={(analyzeResult.person||0)+(analyzeResult.car||0)+(analyzeResult.bicycle||0)+(analyzeResult.other||0)}
+                          max={Math.max((analyzeResult.person||0)+(analyzeResult.car||0)+(analyzeResult.bicycle||0)+(analyzeResult.other||0), 1)}
+                          size={24}
+                          stroke={2.5}
+                          color="#007aff"
+                        />
+                        <span className="text-[18px] font-bold text-mac-text tabular-nums font-mono">
+                          {(analyzeResult.person||0)+(analyzeResult.car||0)+(analyzeResult.bicycle||0)+(analyzeResult.other||0)}
+                        </span>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </section>
+
             {/* ── METRICS ── */}
             <section
               id="section-metrics"
@@ -1065,9 +1406,20 @@ export default function Dashboard() {
                               className={`transition-all duration-300 ${isNew ? "bg-blue-50/80" : "hover:bg-mac-hover/50"}`}
                             >
                               <td className="py-2.5 px-3">
-                                <span className="text-[10px] font-mono text-mac-tertiary">
-                                  {idx + 1}
-                                </span>
+                                <div className="flex flex-col items-start gap-0.5">
+                                  <span className="text-[10px] font-mono text-mac-tertiary">
+                                    {idx + 1}
+                                  </span>
+                                  {log.source && (
+                                    <span className={`text-[8px] font-bold uppercase tracking-wider px-1 py-px rounded ${
+                                      log.source === 'manual' ? 'bg-purple-100 text-purple-600'
+                                        : log.source === 'edge' ? 'bg-green-100 text-green-600'
+                                        : 'bg-blue-100 text-blue-600'
+                                    }`}>
+                                      {log.source === 'manual' ? 'AI' : log.source === 'edge' ? 'Edge' : 'Auto'}
+                                    </span>
+                                  )}
+                                </div>
                               </td>
                               <td className="py-2 px-3">
                                 {log.imageUrl ? (

@@ -26,3 +26,18 @@ Thumbs.db
 # Logs
 *.log
 npm-debug.log*
+
+# Model weights (large binary files)
+*.pt
+*.onnx
+
+# Training dataset (too large for git)
+train/
+
+# Test outputs
+test_yolo_results/
+test_results.json
+detection_results.json
+
+# Runtime data
+server/surveillance_data.json
