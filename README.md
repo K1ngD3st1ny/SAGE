@@ -117,7 +117,7 @@ npm run dev
 rpicam-vid -t 0 --width 1280 --height 720 --framerate 30 \
   --codec h264 --inline -o - | \
   ffmpeg -i - -f mpegts -codec:v mpeg1video -s 960x540 \
-  -b:v 1500k -bf 0 http://<YOUR_PC_IP>:8081/sage_secure_link
+  -b:v 1500k -bf 0 http://10.112.61.185:8081/sage_secure_link
 ```
 
 > Replace `<YOUR_PC_IP>` with your PC's local IP address (find it using `ipconfig` on Windows or `hostname -I` on Linux).

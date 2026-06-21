@@ -3,7 +3,7 @@ import { io } from "socket.io-client";
 
 /* global JSMpeg */
 
-const SOCKET_URL = "http://localhost:5000";
+const SOCKET_URL = import.meta.env.VITE_API_URL || "";
 
 /* ────────────── MOCK DATA ────────────── */
 const MOCK_LOGS = [
@@ -578,7 +578,7 @@ export default function Dashboard() {
       }
       try {
         const wsHost = window.location.hostname || "localhost";
-        const wsUrl = `ws://${wsHost}:8082/`;
+        const wsUrl = import.meta.env.VITE_WS_RELAY_URL || `ws://${wsHost}:8082/`;
         const player = new window.JSMpeg.Player(wsUrl, {
           canvas: videoCanvasRef.current,
           autoplay: true,
@@ -1104,12 +1104,7 @@ export default function Dashboard() {
                       <p className="text-[12px] text-mac-tertiary">
                         Drag & drop or click to browse — JPG, PNG, WebP
                       </p>
-                      <div className="flex items-center gap-2 mt-4">
-                        <Icon.brain className="w-3.5 h-3.5 text-blue-500/60" />
-                        <span className="text-[11px] text-blue-500/70 font-medium">
-                          Powered by HuggingFace DETR
-                        </span>
-                      </div>
+
                     </div>
                   ) : (
                     <div className="relative rounded-xl overflow-hidden border border-mac-border/50 shadow-card bg-gray-900">

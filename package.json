@@ -3,14 +3,19 @@
   "version": "1.0.0",
   "main": "relay.js",
   "scripts": {
-    "start": "node relay.js",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "start": "cd server && node server.js",
+    "build": "cd server && npm install && cd ../client && npm install && npm run build",
+    "relay": "node relay.js",
+    "dev": "node relay.js"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
+  "engines": {
+    "node": ">=18.0.0"
+  },
   "dependencies": {
     "ws": "^8.19.0"
   },
-  "description": ""
+  "description": "SAGE - Surveillance & Alert for Geospatial Emergencies"
 }

@@ -58,9 +58,15 @@ function createLog(data) {
 }
 
 // --------------- Middleware ---------------
-app.use(cors({ origin: CLIENT_URL }));
+app.use(cors({ origin: process.env.NODE_ENV === "production" ? true : CLIENT_URL }));
 app.use(express.json({ limit: "50mb" }));
 app.use("/uploads", express.static(path.join(__dirname, "uploads")));
+
+// Serve React production build
+if (process.env.NODE_ENV === "production") {
+  const clientDist = path.join(__dirname, "..", "client", "dist");
+  app.use(express.static(clientDist));
+}
 
 // Ensure uploads directory exists
 const uploadsDir = path.join(__dirname, "uploads");
@@ -177,10 +183,11 @@ app.post("/api/upload", upload.single("image"), async (req, res) => {
     let counts = parseCounts(req.body);
     let source = "edge";
     let detections = [];
+    let aiResult = null;
 
     if (!counts) {
       source = "auto";
-      const aiResult = await runAIDetection(filePath);
+      aiResult = await runAIDetection(filePath);
       if (aiResult) {
         counts = {
           person: aiResult.person,
@@ -311,9 +318,20 @@ app.delete("/api/logs/:id", async (req, res) => {
   }
 });
 
+// --------------- SPA Fallback (must be after all API routes) ---------------
+if (process.env.NODE_ENV === "production") {
+  const clientDist = path.join(__dirname, "..", "client", "dist");
+  app.get("*", (req, res) => {
+    res.sendFile(path.join(clientDist, "index.html"));
+  });
+}
+
 // --------------- Start ---------------
 server.listen(PORT, () => {
   console.log(`[SAGE] Server running on http://localhost:${PORT}`);
   console.log(`[SAGE] AI server expected at ${AI_SERVER_URL}`);
   console.log(`[SAGE] Data stored in ${DATA_FILE}`);
+  if (process.env.NODE_ENV === "production") {
+    console.log(`[SAGE] Serving React build from ../client/dist`);
+  }
 });
