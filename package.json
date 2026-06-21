@@ -4,7 +4,7 @@
   "main": "relay.js",
   "scripts": {
     "start": "cd server && node server.js",
-    "build": "cd server && npm install && cd ../client && npm install && npm run build",
+    "build": "cd server && npm install --production && cd ../client && npm install --include=dev && npm run build",
     "relay": "node relay.js",
     "dev": "node relay.js"
   },
