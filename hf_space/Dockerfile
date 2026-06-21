@@ -4,7 +4,7 @@ WORKDIR /app
 
 # Install system dependencies for OpenCV/Pillow
 RUN apt-get update && \
-    apt-get install -y --no-install-recommends libgl1-mesa-glx libglib2.0-0 fonts-dejavu-core && \
+    apt-get install -y --no-install-recommends libgl1 libglx-mesa0 libglib2.0-0t64 fonts-dejavu-core && \
     rm -rf /var/lib/apt/lists/*
 
 # Install Python dependencies
